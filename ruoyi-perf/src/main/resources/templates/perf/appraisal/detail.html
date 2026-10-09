@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" >
+<head>
+	<th:block th:include="include :: header('考核单详细')" />
+	<th:block th:include="perf/appraisal/info :: appraisalCss" />
+</head>
+<body class="white-bg">
+	<div class="wrapper wrapper-content animated fadeInRight ibox-content">
+		<div th:replace="~{perf/appraisal/info :: appraisalSummary}"></div>
+
+		<h4 class="form-header h4">考核明细</h4>
+		<table class="table table-bordered perf-items">
+			<thead>
+				<tr>
+					<th class="text-center" style="width:50px;">序号</th>
+					<th style="width:140px;">指标名称</th>
+					<th class="text-center" style="width:90px;">指标类型</th>
+					<th>评分标准</th>
+					<th class="text-center" style="width:70px;">权重</th>
+					<th class="text-center" style="width:80px;">自评分</th>
+					<th class="text-center" style="width:80px;">上级评分</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr th:each="item, stat : ${appraisal.items}">
+					<td class="text-center" th:text="${stat.count}"></td>
+					<td th:text="${item.indicatorName}"></td>
+					<td class="text-center" th:text="${@dict.getLabel('perf_indicator_type', item.indicatorType)}"></td>
+					<td class="text-muted" th:text="${item.scoringStandard}"></td>
+					<td class="text-center" th:text="${item.weight} + '%'"></td>
+					<td class="text-center" th:text="${item.selfScore != null ? item.selfScore : '-'}"></td>
+					<td class="text-center" th:text="${item.leaderScore != null ? item.leaderScore : '-'}"></td>
+				</tr>
+			</tbody>
+			<tfoot>
+				<tr>
+					<th colspan="5" class="text-right">加权得分</th>
+					<th class="text-center" th:text="${appraisal.selfScore != null ? appraisal.selfScore : '-'}"></th>
+					<th class="text-center" th:text="${appraisal.leaderScore != null ? appraisal.leaderScore : '-'}"></th>
+				</tr>
+			</tfoot>
+		</table>
+
+		<h4 class="form-header h4">评价</h4>
+		<div class="form-horizontal">
+			<div class="form-group">
+				<label class="col-sm-2 control-label">自评总结：</label>
+				<div class="col-sm-10 form-control-static perf-comment" th:text="${#strings.isEmpty(appraisal.selfComment) ? '暂无' : appraisal.selfComment}"></div>
+			</div>
+			<div class="form-group">
+				<label class="col-sm-2 control-label">上级评语：</label>
+				<div class="col-sm-10 form-control-static perf-comment" th:text="${#strings.isEmpty(appraisal.leaderComment) ? '暂无' : appraisal.leaderComment}"></div>
+			</div>
+		</div>
+	</div>
+	<th:block th:include="include :: footer" />
+</body>
+</html>

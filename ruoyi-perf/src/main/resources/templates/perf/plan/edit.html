@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" >
+<head>
+	<th:block th:include="include :: header('修改考核计划')" />
+	<th:block th:include="include :: datetimepicker-css" />
+</head>
+<body class="white-bg">
+	<div class="wrapper wrapper-content animated fadeInRight ibox-content">
+		<form class="form-horizontal m" id="form-plan-edit" th:object="${plan}">
+			<input id="planId" name="planId" type="hidden" th:field="*{planId}"/>
+			<div class="form-group">
+				<label class="col-sm-3 control-label is-required">计划名称：</label>
+				<div class="col-sm-8">
+					<input class="form-control" type="text" name="planName" id="planName" th:field="*{planName}" maxlength="100" placeholder="例如：2026年第三季度绩效考核" required>
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="col-sm-3 control-label is-required">考核周期：</label>
+				<div class="col-sm-8">
+					<select name="cycleType" class="form-control" th:with="type=${@dict.getType('perf_cycle_type')}" required>
+						<option th:each="dict : ${type}" th:text="${dict.dictLabel}" th:value="${dict.dictValue}" th:field="*{cycleType}"></option>
+					</select>
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="col-sm-3 control-label is-required">考核期间：</label>
+				<div class="col-sm-4">
+					<div class="input-group date">
+						<input name="startDate" id="startDate" th:value="${#dates.format(plan.startDate, 'yyyy-MM-dd')}" class="form-control" placeholder="开始日期 yyyy-MM-dd" type="text" autocomplete="off" required>
+						<span class="input-group-addon"><i class="fa fa-calendar"></i></span>
+					</div>
+				</div>
+				<div class="col-sm-4">
+					<div class="input-group date">
+						<input name="endDate" id="endDate" th:value="${#dates.format(plan.endDate, 'yyyy-MM-dd')}" class="form-control" placeholder="结束日期 yyyy-MM-dd" type="text" autocomplete="off" required>
+						<span class="input-group-addon"><i class="fa fa-calendar"></i></span>
+					</div>
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="col-sm-3 control-label is-required">考核模板：</label>
+				<div class="col-sm-8">
+					<select name="templateId" class="form-control" required>
+						<option value="">请选择考核模板</option>
+						<option th:each="t : ${templates}" th:value="${t.templateId}" th:selected="${t.templateId == plan.templateId}" th:text="${t.templateName} + '（' + ${t.itemCount} + '项指标）'"></option>
+					</select>
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="col-sm-3 control-label is-required">自评权重：</label>
+				<div class="col-sm-8">
+					<div class="input-group">
+						<input class="form-control" type="text" name="selfWeight" id="selfWeight" th:field="*{selfWeight}" required>
+						<span class="input-group-addon">%</span>
+					</div>
+					<span class="help-block m-b-none"><i class="fa fa-info-circle"></i> 最终得分 = 自评得分 × 自评权重 + 上级评分 × (100% - 自评权重)，设为 0 表示只看上级评分</span>
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="col-sm-3 control-label">备注：</label>
+				<div class="col-sm-8">
+					<textarea id="remark" name="remark" class="form-control" maxlength="500">[[*{remark}]]</textarea>
+				</div>
+			</div>
+		</form>
+	</div>
+	<th:block th:include="include :: footer" />
+	<th:block th:include="include :: datetimepicker-js" />
+	<script type="text/javascript">
+		var prefix = ctx + "perf/plan";
+
+		$("input[name='startDate'], input[name='endDate']").datetimepicker({
+			format: "yyyy-mm-dd",
+			minView: "month",
+			autoclose: true
+		});
+
+		$("#form-plan-edit").validate({
+			onkeyup: false,
+			rules:{
+				planName:{
+					remote: {
+						url: prefix + "/checkPlanNameUnique",
+						type: "post",
+						dataType: "json",
+						data: {
+							"planId": function() {
+								return $("#planId").val();
+							},
+							"planName" : function() {
+								return $.common.trim($("#planName").val());
+							}
+						}
+					}
+				},
+				selfWeight:{
+					digits: true,
+					range: [0, 100]
+				}
+			},
+			messages: {
+				"planName": {
+					remote: "计划名称已经存在"
+				}
+			},
+			focusCleanup: true
+		});
+
+		function submitHandler() {
+			if ($.validate.form()) {
+				if ($("#startDate").val() > $("#endDate").val()) {
+					$.modal.alertWarning("考核开始日期不能晚于结束日期");
+					return;
+				}
+				$.operate.save(prefix + "/edit", $('#form-plan-edit').serialize());
+			}
+		}
+	</script>
+</body>
+</html>

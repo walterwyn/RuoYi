@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+<head>
+	<th:block th:include="include :: header('考核计划列表')" />
+</head>
+<body class="gray-bg">
+	<div class="container-div">
+		<div class="row">
+			<div class="col-sm-12 search-collapse">
+				<form id="plan-form">
+					<div class="select-list">
+						<ul>
+							<li>
+								计划名称：<input type="text" name="planName"/>
+							</li>
+							<li>
+								考核周期：<select name="cycleType" th:with="type=${@dict.getType('perf_cycle_type')}">
+									<option value="">所有</option>
+									<option th:each="dict : ${type}" th:text="${dict.dictLabel}" th:value="${dict.dictValue}"></option>
+								</select>
+							</li>
+							<li>
+								计划状态：<select name="planStatus" th:with="type=${@dict.getType('perf_plan_status')}">
+									<option value="">所有</option>
+									<option th:each="dict : ${type}" th:text="${dict.dictLabel}" th:value="${dict.dictValue}"></option>
+								</select>
+							</li>
+							<li class="select-time">
+								<label>开始日期： </label>
+								<input type="text" class="time-input" id="startTime" placeholder="开始时间" name="params[beginTime]"/>
+								<span>-</span>
+								<input type="text" class="time-input" id="endTime" placeholder="结束时间" name="params[endTime]"/>
+							</li>
+							<li>
+								<a class="btn btn-primary btn-rounded btn-sm" onclick="$.table.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
+								<a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
+							</li>
+						</ul>
+					</div>
+				</form>
+			</div>
+
+			<div class="btn-group-sm" id="toolbar" role="group">
+				<a class="btn btn-success" onclick="$.operate.add()" shiro:hasPermission="perf:plan:add">
+					<i class="fa fa-plus"></i> 新增
+				</a>
+				<a class="btn btn-primary single disabled" onclick="$.operate.edit()" shiro:hasPermission="perf:plan:edit">
+					<i class="fa fa-edit"></i> 修改
+				</a>
+				<a class="btn btn-danger multiple disabled" onclick="$.operate.removeAll()" shiro:hasPermission="perf:plan:remove">
+					<i class="fa fa-remove"></i> 删除
+				</a>
+				<a class="btn btn-warning" onclick="$.table.exportExcel()" shiro:hasPermission="perf:plan:export">
+					<i class="fa fa-download"></i> 导出
+				</a>
+			</div>
+
+			<div class="col-sm-12 select-table table-striped">
+				<table id="bootstrap-table"></table>
+			</div>
+		</div>
+	</div>
+	<th:block th:include="include :: footer" />
+	<script th:inline="javascript">
+		var editFlag = [[${@permission.hasPermi('perf:plan:edit')}]];
+		var removeFlag = [[${@permission.hasPermi('perf:plan:remove')}]];
+		var publishFlag = [[${@permission.hasPermi('perf:plan:publish')}]];
+		var finishFlag = [[${@permission.hasPermi('perf:plan:finish')}]];
+		var cycleDatas = [[${@dict.getType('perf_cycle_type')}]];
+		var statusDatas = [[${@dict.getType('perf_plan_status')}]];
+		var prefix = ctx + "perf/plan";
+
+		$(function() {
+			var options = {
+				url: prefix + "/list",
+				createUrl: prefix + "/add",
+				updateUrl: prefix + "/edit/{id}",
+				removeUrl: prefix + "/remove",
+				exportUrl: prefix + "/export",
+				modalName: "考核计划",
+				columns: [{
+					checkbox: true
+				},
+				{
+					field: 'planId',
+					title: '计划编号',
+					visible: false
+				},
+				{
+					field: 'planName',
+					title: '计划名称'
+				},
+				{
+					field: 'cycleType',
+					title: '考核周期',
+					align: 'center',
+					formatter: function(value, row, index) {
+						return $.table.selectDictLabel(cycleDatas, value);
+					}
+				},
+				{
+					title: '考核期间',
+					align: 'center',
+					formatter: function(value, row, index) {
+						return row.startDate + ' ~ ' + row.endDate;
+					}
+				},
+				{
+					field: 'templateName',
+					title: '考核模板'
+				},
+				{
+					field: 'selfWeight',
+					title: '自评权重',
+					align: 'center',
+					formatter: function(value, row, index) {
+						return value + '%';
+					}
+				},
+				{
+					field: 'planStatus',
+					title: '状态',
+					align: 'center',
+					formatter: function(value, row, index) {
+						return $.table.selectDictLabel(statusDatas, value);
+					}
+				},
+				{
+					title: '完成进度',
+					align: 'center',
+					width: 160,
+					formatter: function(value, row, index) {
+						if (row.planStatus == '0') {
+							return '-';
+						}
+						var percent = row.totalCount == 0 ? 0 : Math.floor(row.finishedCount * 100 / row.totalCount);
+						return '<div class="progress progress-mini" style="margin:4px 0 2px;"><div style="width:' + percent + '%;" class="progress-bar"></div></div>'
+							+ '<small>' + row.finishedCount + ' / ' + row.totalCount + '</small>';
+					}
+				},
+				{
+					field: 'publishTime',
+					title: '发布时间'
+				},
+				{
+					title: '操作',
+					align: 'center',
+					formatter: function(value, row, index) {
+						var actions = [];
+						if (row.planStatus == '0') {
+							actions.push('<a class="btn btn-success btn-xs ' + editFlag + '" href="javascript:void(0)" onclick="$.operate.edit(\'' + row.planId + '\')"><i class="fa fa-edit"></i>编辑</a> ');
+							actions.push('<a class="btn btn-primary btn-xs ' + publishFlag + '" href="javascript:void(0)" onclick="publish(\'' + row.planId + '\')"><i class="fa fa-send"></i>发布</a> ');
+							actions.push('<a class="btn btn-danger btn-xs ' + removeFlag + '" href="javascript:void(0)" onclick="$.operate.remove(\'' + row.planId + '\')"><i class="fa fa-remove"></i>删除</a>');
+						} else {
+							actions.push('<a class="btn btn-info btn-xs" href="javascript:void(0)" onclick="progress(\'' + row.planId + '\')"><i class="fa fa-tasks"></i>考核进度</a> ');
+							if (row.planStatus == '1') {
+								actions.push('<a class="btn btn-warning btn-xs ' + finishFlag + '" href="javascript:void(0)" onclick="finish(\'' + row.planId + '\', \'' + row.finishedCount + '\', \'' + row.totalCount + '\')"><i class="fa fa-flag-checkered"></i>结束考核</a>');
+							}
+						}
+						return actions.join('');
+					}
+				}]
+			};
+			$.table.init(options);
+		});
+
+		/* 发布考核计划 */
+		function publish(planId) {
+			$.modal.open("发布考核计划", prefix + "/publish/" + planId, 800);
+		}
+
+		/* 考核进度 */
+		function progress(planId) {
+			$.modal.openTab("考核进度", prefix + "/progress/" + planId);
+		}
+
+		/* 结束考核 */
+		function finish(planId, finishedCount, totalCount) {
+			$.modal.confirm("当前已完成 " + finishedCount + " / " + totalCount + " 份考核单，结束后所有考核单将被锁定，确认结束考核吗？", function() {
+				$.operate.post(prefix + "/finish", { "planId": planId });
+			});
+		}
+	</script>
+</body>
+</html>

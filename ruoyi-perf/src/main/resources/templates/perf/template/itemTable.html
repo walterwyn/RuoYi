@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<body>
+	<!-- 考核模板指标子表（新增、修改共用） -->
+	<div th:fragment="itemTableHtml">
+		<h4 class="form-header h4">考核指标</h4>
+		<div class="row">
+			<div class="col-sm-12">
+				<button type="button" class="btn btn-white btn-sm" onclick="selectIndicator()"><i class="fa fa-plus"> 添加指标</i></button>
+				<button type="button" class="btn btn-white btn-sm" onclick="removeItems()"><i class="fa fa-minus"> 删除</i></button>
+				<span class="pull-right" style="line-height:30px;">权重合计：<b id="totalWeight">0</b>%<span class="text-muted">（必须为100%）</span></span>
+				<div class="col-sm-12 select-table table-striped">
+					<table id="bootstrap-table"></table>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script th:fragment="itemTableJs" th:inline="javascript">
+		var typeDatas = [[${@dict.getType('perf_indicator_type')}]];
+		var items = [];
+
+		function initItemTable(data) {
+			items = data || [];
+			var options = {
+				data: items,
+				pagination: false,
+				showSearch: false,
+				showRefresh: false,
+				showToggle: false,
+				showColumns: false,
+				sidePagination: "client",
+				uniqueId: "indicatorId",
+				columns: [{
+					checkbox: true
+				},
+				{
+					title: "序号",
+					align: 'center',
+					formatter: function (value, row, index) {
+						return $.table.serialNumber(index);
+					}
+				},
+				{
+					field: 'indicatorName',
+					title: '指标名称'
+				},
+				{
+					field: 'indicatorType',
+					title: '指标类型',
+					align: 'center',
+					formatter: function(value, row, index) {
+						return $.table.selectDictLabel(typeDatas, value);
+					}
+				},
+				{
+					field: 'scoringStandard',
+					title: '评分标准',
+					formatter: function(value, row, index) {
+						return $.table.tooltip(value, 30);
+					}
+				},
+				{
+					field: 'weight',
+					title: '权重（%）',
+					align: 'center',
+					width: 140,
+					formatter: function(value, row, index) {
+						return $.common.sprintf("<input class='form-control input-sm item-weight' type='number' min='1' max='100' step='1' data-index='%s' value='%s'>", index, $.common.nullToStr(value));
+					}
+				}]
+			};
+			$.table.init(options);
+			refreshTotal();
+		}
+
+		$(document).on("input change", ".item-weight", function() {
+			var index = $(this).data("index");
+			items[index].weight = $(this).val();
+			refreshTotal();
+		});
+
+		function refreshTotal() {
+			var total = 0;
+			$.each(items, function(i, item) {
+				total += parseInt(item.weight, 10) || 0;
+			});
+			$("#totalWeight").text(total).css("color", total == 100 ? "#1ab394" : "#ed5565");
+			return total;
+		}
+
+		function reloadItems() {
+			$("#bootstrap-table").bootstrapTable("load", items);
+			refreshTotal();
+		}
+
+		/* 添加指标 */
+		function selectIndicator() {
+			$.modal.open("选择考核指标", prefix + "/selectIndicator", 900, null, function(index, layero) {
+				var rows = layero.find("iframe")[0].contentWindow.getSelections();
+				if (rows.length == 0) {
+					$.modal.alertWarning("请至少选择一个考核指标");
+					return;
+				}
+				var exists = $.map(items, function(item) { return String(item.indicatorId); });
+				$.each(rows, function(i, row) {
+					if ($.inArray(String(row.indicatorId), exists) == -1) {
+						items.push({
+							indicatorId: row.indicatorId,
+							indicatorName: row.indicatorName,
+							indicatorType: row.indicatorType,
+							scoringStandard: row.scoringStandard,
+							weight: ""
+						});
+					}
+				});
+				reloadItems();
+				top.layer.close(index);
+			});
+		}
+
+		/* 删除选中的指标 */
+		function removeItems() {
+			var ids = $.table.selectColumns("indicatorId");
+			if (ids.length == 0) {
+				$.modal.alertWarning("请至少选择一条记录");
+				return;
+			}
+			items = $.grep(items, function(item) {
+				return $.inArray(item.indicatorId, ids) == -1;
+			});
+			reloadItems();
+		}
+
+		/* 校验并组装提交数据 */
+		function buildData(formId) {
+			if (items.length == 0) {
+				$.modal.alertWarning("请至少添加一个考核指标");
+				return null;
+			}
+			for (var i = 0; i < items.length; i++) {
+				var weight = Number(items[i].weight);
+				if (!/^\d+$/.test(String(items[i].weight)) || weight < 1 || weight > 100) {
+					$.modal.alertWarning("指标「" + items[i].indicatorName + "」的权重必须是1到100之间的整数");
+					return null;
+				}
+			}
+			var total = refreshTotal();
+			if (total != 100) {
+				$.modal.alertWarning("指标权重合计必须为100%，当前为" + total + "%");
+				return null;
+			}
+			var data = $("#" + formId).serializeArray();
+			$.each(items, function(i, item) {
+				data.push({ name: "items[" + i + "].indicatorId", value: item.indicatorId });
+				data.push({ name: "items[" + i + "].weight", value: item.weight });
+			});
+			return data;
+		}
+	</script>
+</body>
+</html>

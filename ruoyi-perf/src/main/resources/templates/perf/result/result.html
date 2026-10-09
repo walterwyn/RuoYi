@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+<head>
+	<th:block th:include="include :: header('绩效结果')" />
+	<th:block th:include="include :: layout-latest-css" />
+	<th:block th:include="include :: ztree-css" />
+	<style type="text/css">
+		.perf-stats { background: #fff; margin: 10px 0 0; padding: 10px 15px; border-radius: 6px; }
+		.perf-stat-item { text-align: center; padding: 18px 0; }
+		.perf-stat-item .perf-stat-value { font-size: 26px; font-weight: 600; color: #1ab394; }
+		.perf-stat-item .perf-stat-label { color: #999; }
+	</style>
+</head>
+<body class="gray-bg">
+	<div class="ui-layout-west">
+		<div class="box box-main">
+			<div class="box-header">
+				<div class="box-title">
+					<i class="fa fa-sitemap"></i> 组织机构
+				</div>
+				<div class="box-tools pull-right">
+					<button type="button" class="btn btn-box-tool" id="btnExpand" title="展开" style="display:none;"><i class="fa fa-chevron-up"></i></button>
+					<button type="button" class="btn btn-box-tool" id="btnCollapse" title="折叠"><i class="fa fa-chevron-down"></i></button>
+					<button type="button" class="btn btn-box-tool" id="btnRefresh" title="刷新部门"><i class="fa fa-refresh"></i></button>
+				</div>
+			</div>
+			<div class="ui-layout-content">
+				<div id="tree" class="ztree"></div>
+			</div>
+		</div>
+	</div>
+
+	<div class="ui-layout-center">
+		<div class="container-div">
+			<div class="row">
+				<div class="col-sm-12 search-collapse">
+					<form id="result-form">
+						<input type="hidden" id="deptId" name="deptId">
+						<div class="select-list">
+							<ul>
+								<li>
+									考核计划：<select name="planId" id="planId">
+										<option value="">所有</option>
+										<option th:each="plan : ${plans}" th:value="${plan.planId}" th:text="${plan.planName}"></option>
+									</select>
+								</li>
+								<li>
+									员工：<input type="text" name="userName" placeholder="姓名或登录账号"/>
+								</li>
+								<li>
+									绩效等级：<select name="grade" th:with="type=${@dict.getType('perf_grade')}">
+										<option value="">所有</option>
+										<option th:each="dict : ${type}" th:text="${dict.dictLabel}" th:value="${dict.dictValue}"></option>
+									</select>
+								</li>
+								<li>
+									<a class="btn btn-primary btn-rounded btn-sm" onclick="search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
+									<a class="btn btn-warning btn-rounded btn-sm" onclick="resetPre()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
+								</li>
+							</ul>
+						</div>
+					</form>
+				</div>
+
+				<div class="col-sm-12 perf-stats">
+					<div class="row">
+						<div class="col-sm-2 perf-stat-item">
+							<div class="perf-stat-value" id="statTotal">0</div>
+							<div class="perf-stat-label">已完成人数</div>
+						</div>
+						<div class="col-sm-2 perf-stat-item">
+							<div class="perf-stat-value" id="statAvg">-</div>
+							<div class="perf-stat-label">平均得分</div>
+						</div>
+						<div class="col-sm-2 perf-stat-item">
+							<div class="perf-stat-value" id="statExcellent">-</div>
+							<div class="perf-stat-label">优秀率（S+A）</div>
+						</div>
+						<div class="col-sm-6">
+							<div id="gradeChart" style="height:120px;"></div>
+						</div>
+					</div>
+				</div>
+
+				<div class="btn-group-sm" id="toolbar" role="group">
+					<a class="btn btn-warning" onclick="$.table.exportExcel()" shiro:hasPermission="perf:result:export">
+						<i class="fa fa-download"></i> 导出
+					</a>
+				</div>
+
+				<div class="col-sm-12 select-table table-striped">
+					<table id="bootstrap-table"></table>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<th:block th:include="include :: footer" />
+	<th:block th:include="include :: layout-latest-js" />
+	<th:block th:include="include :: ztree-js" />
+	<th:block th:include="include :: echarts-js" />
+	<script th:inline="javascript">
+		var cycleDatas = [[${@dict.getType('perf_cycle_type')}]];
+		var gradeDatas = [[${@dict.getType('perf_grade')}]];
+		var prefix = ctx + "perf/result";
+		var gradeChart;
+
+		$(function() {
+			var panehHidden = false;
+			if ($(this).width() < 769) {
+				panehHidden = true;
+			}
+			$('body').layout({ initClosed: panehHidden, west__size: 185, resizeWithWindow: false });
+			gradeChart = echarts.init(document.getElementById('gradeChart'));
+			$(window).resize(function() {
+				gradeChart.resize();
+			});
+			queryResultList();
+			queryDeptTree();
+			loadStats();
+		});
+
+		function queryResultList() {
+			var options = {
+				url: prefix + "/list",
+				detailUrl: prefix + "/detail/{id}",
+				exportUrl: prefix + "/export",
+				modalName: "考核结果",
+				columns: [
+				{
+					field: 'planRank',
+					title: '排名',
+					align: 'center',
+					formatter: function(value, row, index) {
+						if (value <= 3) {
+							return '<span class="badge badge-warning">' + value + '</span>';
+						}
+						return value;
+					}
+				},
+				{
+					field: 'planName',
+					title: '考核计划'
+				},
+				{
+					field: 'userName',
+					title: '员工姓名'
+				},
+				{
+					field: 'loginName',
+					title: '登录账号'
+				},
+				{
+					field: 'deptName',
+					title: '部门'
+				},
+				{
+					field: 'selfScore',
+					title: '自评得分',
+					align: 'center'
+				},
+				{
+					field: 'leaderScore',
+					title: '上级评分',
+					align: 'center'
+				},
+				{
+					field: 'finalScore',
+					title: '最终得分',
+					align: 'center',
+					formatter: function(value, row, index) {
+						return '<b>' + value + '</b>';
+					}
+				},
+				{
+					field: 'grade',
+					title: '绩效等级',
+					align: 'center',
+					formatter: function(value, row, index) {
+						return $.table.selectDictLabel(gradeDatas, value);
+					}
+				},
+				{
+					field: 'reviewerName',
+					title: '评分人'
+				},
+				{
+					title: '操作',
+					align: 'center',
+					formatter: function(value, row, index) {
+						return '<a class="btn btn-info btn-xs" href="javascript:void(0)" onclick="$.operate.detail(\'' + row.appraisalId + '\', 1000)"><i class="fa fa-search"></i>详细</a>';
+					}
+				}]
+			};
+			$.table.init(options);
+		}
+
+		function queryDeptTree() {
+			var options = {
+				url: prefix + "/deptTreeData",
+				expandLevel: 2,
+				onClick : zOnClick
+			};
+			$.tree.init(options);
+
+			function zOnClick(event, treeId, treeNode) {
+				$("#deptId").val(treeNode.id);
+				search();
+			}
+		}
+
+		$('#btnExpand').click(function() {
+			$._tree.expandAll(true);
+			$(this).hide();
+			$('#btnCollapse').show();
+		});
+
+		$('#btnCollapse').click(function() {
+			$._tree.expandAll(false);
+			$(this).hide();
+			$('#btnExpand').show();
+		});
+
+		$('#btnRefresh').click(function() {
+			queryDeptTree();
+		});
+
+		function search() {
+			$.table.search();
+			loadStats();
+		}
+
+		/* 重置 */
+		function resetPre() {
+			$("#result-form")[0].reset();
+			$("#deptId").val("");
+			$(".curSelectedNode").removeClass("curSelectedNode");
+			search();
+		}
+
+		/* 加载等级分布统计 */
+		function loadStats() {
+			var data = $("#result-form").serializeArray();
+			$.post(prefix + "/stats", data, function(result) {
+				if (result.code != web_status.SUCCESS) {
+					return;
+				}
+				var total = 0, sum = 0, excellent = 0, counts = {};
+				$.each(result.data, function(i, stat) {
+					counts[stat.grade] = stat.total;
+					total += stat.total;
+					sum += stat.total * stat.avgScore;
+					if (stat.grade == 'S' || stat.grade == 'A') {
+						excellent += stat.total;
+					}
+				});
+				$("#statTotal").text(total);
+				$("#statAvg").text(total == 0 ? '-' : (sum / total).toFixed(2));
+				$("#statExcellent").text(total == 0 ? '-' : (excellent * 100 / total).toFixed(1) + '%');
+				var grades = $.map(gradeDatas, function(dict) { return dict.dictLabel; });
+				var values = $.map(gradeDatas, function(dict) { return counts[dict.dictValue] || 0; });
+				gradeChart.setOption({
+					color: ['#1ab394'],
+					tooltip: { trigger: 'axis', formatter: '{b} 级：{c} 人' },
+					grid: { left: 40, right: 20, top: 15, bottom: 25 },
+					xAxis: { type: 'category', data: grades },
+					yAxis: { type: 'value', minInterval: 1 },
+					series: [{ type: 'bar', barMaxWidth: 36, data: values, label: { show: true, position: 'top' } }]
+				});
+			});
+		}
+	</script>
+</body>
+</html>

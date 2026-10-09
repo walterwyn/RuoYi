@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.perf.mapper.PerfAppraisalMapper">
+
+	<resultMap type="PerfAppraisal" id="PerfAppraisalResult">
+		<id     property="appraisalId"      column="appraisal_id"      />
+		<result property="planId"           column="plan_id"           />
+		<result property="planName"         column="plan_name"         />
+		<result property="cycleType"        column="cycle_type"        />
+		<result property="planStatus"       column="plan_status"       />
+		<result property="selfWeight"       column="self_weight"       />
+		<result property="userId"           column="user_id"           />
+		<result property="loginName"        column="login_name"        />
+		<result property="userName"         column="user_name"         />
+		<result property="deptId"           column="dept_id"           />
+		<result property="deptName"         column="dept_name"         />
+		<result property="reviewerId"       column="reviewer_id"       />
+		<result property="reviewerName"     column="reviewer_name"     />
+		<result property="selfScore"        column="self_score"        />
+		<result property="leaderScore"      column="leader_score"      />
+		<result property="finalScore"       column="final_score"       />
+		<result property="grade"            column="grade"             />
+		<result property="planRank"         column="plan_rank"         />
+		<result property="selfComment"      column="self_comment"      />
+		<result property="leaderComment"    column="leader_comment"    />
+		<result property="appraisalStatus"  column="appraisal_status"  />
+		<result property="selfTime"         column="self_time"         />
+		<result property="reviewTime"       column="review_time"       />
+		<result property="createBy"         column="create_by"         />
+		<result property="createTime"       column="create_time"       />
+		<result property="updateBy"         column="update_by"         />
+		<result property="updateTime"       column="update_time"       />
+	</resultMap>
+
+	<resultMap type="PerfAppraisalItem" id="PerfAppraisalItemResult">
+		<id     property="itemId"           column="item_id"           />
+		<result property="appraisalId"      column="appraisal_id"      />
+		<result property="indicatorId"      column="indicator_id"      />
+		<result property="indicatorName"    column="indicator_name"    />
+		<result property="indicatorType"    column="indicator_type"    />
+		<result property="scoringStandard"  column="scoring_standard"  />
+		<result property="weight"           column="weight"            />
+		<result property="selfScore"        column="self_score"        />
+		<result property="leaderScore"      column="leader_score"      />
+		<result property="orderNum"         column="order_num"         />
+	</resultMap>
+
+	<sql id="selectAppraisalVo">
+		select a.appraisal_id, a.plan_id, p.plan_name, p.cycle_type, p.plan_status, p.self_weight,
+		       a.user_id, u.login_name, u.user_name, a.dept_id, d.dept_name, a.reviewer_id, r.user_name as reviewer_name,
+		       a.self_score, a.leader_score, a.final_score, a.grade, a.self_comment, a.leader_comment,
+		       a.appraisal_status, a.self_time, a.review_time, a.create_by, a.create_time, a.update_by, a.update_time,
+		       case when a.appraisal_status = '2' then
+		           (select count(1) + 1 from perf_appraisal k where k.plan_id = a.plan_id and k.appraisal_status = '2' and k.final_score &gt; a.final_score)
+		       end as plan_rank
+		from perf_appraisal a
+		inner join perf_plan p on p.plan_id = a.plan_id
+		left join sys_user u on u.user_id = a.user_id
+		left join sys_dept d on d.dept_id = a.dept_id
+		left join sys_user r on r.user_id = a.reviewer_id
+	</sql>
+
+	<sql id="appraisalWhere">
+		<where>
+			<if test="appraisalId != null">
+				AND a.appraisal_id = #{appraisalId}
+			</if>
+			<if test="planId != null">
+				AND a.plan_id = #{planId}
+			</if>
+			<if test="userId != null">
+				AND a.user_id = #{userId}
+			</if>
+			<if test="reviewerId != null">
+				AND a.reviewer_id = #{reviewerId}
+			</if>
+			<if test="planStatus != null and planStatus != ''">
+				AND p.plan_status = #{planStatus}
+			</if>
+			<if test="appraisalStatus != null and appraisalStatus != ''">
+				AND a.appraisal_status = #{appraisalStatus}
+			</if>
+			<if test="grade != null and grade != ''">
+				AND a.grade = #{grade}
+			</if>
+			<if test="cycleType != null and cycleType != ''">
+				AND p.cycle_type = #{cycleType}
+			</if>
+			<if test="planName != null and planName != ''">
+				AND p.plan_name like concat('%', #{planName}, '%')
+			</if>
+			<if test="userName != null and userName != ''">
+				AND (u.user_name like concat('%', #{userName}, '%') OR u.login_name like concat('%', #{userName}, '%'))
+			</if>
+			<if test="deptId != null and deptId != 0">
+				AND (a.dept_id = #{deptId} OR a.dept_id IN ( SELECT t.dept_id FROM sys_dept t WHERE find_in_set(#{deptId}, ancestors) ))
+			</if>
+			<!-- 数据范围过滤 -->
+			${params.dataScope}
+		</where>
+	</sql>
+
+	<select id="selectAppraisalList" parameterType="PerfAppraisal" resultMap="PerfAppraisalResult">
+		<include refid="selectAppraisalVo"/>
+		<include refid="appraisalWhere"/>
+		order by a.plan_id desc, a.final_score desc, a.appraisal_id
+	</select>
+
+	<select id="selectGradeStats" parameterType="PerfAppraisal" resultType="java.util.LinkedHashMap">
+		select a.grade as grade, count(1) as total, round(avg(a.final_score), 2) as avgScore
+		from perf_appraisal a
+		inner join perf_plan p on p.plan_id = a.plan_id
+		left join sys_user u on u.user_id = a.user_id
+		left join sys_dept d on d.dept_id = a.dept_id
+		<include refid="appraisalWhere"/>
+		group by a.grade
+		order by a.grade
+	</select>
+
+	<select id="selectAppraisalById" parameterType="Long" resultMap="PerfAppraisalResult">
+		<include refid="selectAppraisalVo"/>
+		where a.appraisal_id = #{appraisalId}
+	</select>
+
+	<select id="selectAppraisalItems" parameterType="Long" resultMap="PerfAppraisalItemResult">
+		select item_id, appraisal_id, indicator_id, indicator_name, indicator_type, scoring_standard, weight, self_score, leader_score, order_num
+		from perf_appraisal_item
+		where appraisal_id = #{appraisalId}
+		order by order_num, item_id
+	</select>
+
+	<select id="countUnfinishedByPlanId" parameterType="Long" resultType="int">
+		select count(1) from perf_appraisal where plan_id = #{planId} and appraisal_status != '2'
+	</select>
+
+	<!-- 发布计划时查询参与人员及其部门负责人（按部门负责人姓名匹配用户，优先同部门） -->
+	<select id="selectPublishCandidates" resultMap="PerfAppraisalResult">
+		select u.user_id, u.dept_id,
+		       (select lu.user_id from sys_user lu
+		         where lu.user_name = d.leader and lu.del_flag = '0' and lu.status = '0'
+		         order by case when lu.dept_id = d.dept_id then 0 else 1 end, lu.user_id
+		         limit 1) as reviewer_id
+		from sys_user u
+		inner join sys_dept d on d.dept_id = u.dept_id
+		where u.del_flag = '0' and u.status = '0' and u.dept_id in
+		<foreach collection="array" item="deptId" open="(" separator="," close=")">
+			#{deptId}
+		</foreach>
+		order by u.dept_id, u.user_id
+	</select>
+
+	<insert id="insertAppraisal" parameterType="PerfAppraisal" useGeneratedKeys="true" keyProperty="appraisalId">
+		insert into perf_appraisal(plan_id, user_id, dept_id, reviewer_id, appraisal_status, create_by, create_time)
+		values(#{planId}, #{userId}, #{deptId}, #{reviewerId}, '0', #{createBy}, sysdate())
+	</insert>
+
+	<insert id="batchAppraisalItem">
+		insert into perf_appraisal_item(appraisal_id, indicator_id, indicator_name, indicator_type, scoring_standard, weight, order_num) values
+		<foreach item="item" index="index" collection="list" separator=",">
+			(#{item.appraisalId}, #{item.indicatorId}, #{item.indicatorName}, #{item.indicatorType}, #{item.scoringStandard}, #{item.weight}, #{item.orderNum})
+		</foreach>
+	</insert>
+
+	<update id="updateItemSelfScore" parameterType="PerfAppraisalItem">
+		update perf_appraisal_item set self_score = #{selfScore}
+		where item_id = #{itemId} and appraisal_id = #{appraisalId}
+	</update>
+
+	<update id="updateItemLeaderScore" parameterType="PerfAppraisalItem">
+		update perf_appraisal_item set leader_score = #{leaderScore}
+		where item_id = #{itemId} and appraisal_id = #{appraisalId}
+	</update>
+
+	<!-- 保存自评（仅待自评状态可保存） -->
+	<update id="updateSelfEvaluation" parameterType="PerfAppraisal">
+		update perf_appraisal
+		set self_comment = #{selfComment},
+		    self_score = #{selfScore},
+		    <if test="appraisalStatus != null and appraisalStatus != ''">appraisal_status = #{appraisalStatus}, self_time = sysdate(),</if>
+		    update_by = #{updateBy},
+		    update_time = sysdate()
+		where appraisal_id = #{appraisalId} and appraisal_status = '0'
+	</update>
+
+	<!-- 上级评分（仅待评分状态可提交） -->
+	<update id="updateReview" parameterType="PerfAppraisal">
+		update perf_appraisal
+		set leader_comment = #{leaderComment},
+		    leader_score = #{leaderScore},
+		    final_score = #{finalScore},
+		    grade = #{grade},
+		    appraisal_status = '2',
+		    review_time = sysdate(),
+		    update_by = #{updateBy},
+		    update_time = sysdate()
+		where appraisal_id = #{appraisalId} and appraisal_status = '1'
+	</update>
+
+	<!-- 退回重新自评（仅待评分状态可退回） -->
+	<update id="updateReject" parameterType="PerfAppraisal">
+		update perf_appraisal
+		set leader_comment = #{leaderComment},
+		    appraisal_status = '0',
+		    update_by = #{updateBy},
+		    update_time = sysdate()
+		where appraisal_id = #{appraisalId} and appraisal_status = '1'
+	</update>
+
+	<!-- 更换评分人（已完成的考核单不可更换） -->
+	<update id="updateReviewer" parameterType="PerfAppraisal">
+		update perf_appraisal
+		set reviewer_id = #{reviewerId},
+		    update_by = #{updateBy},
+		    update_time = sysdate()
+		where appraisal_id = #{appraisalId} and appraisal_status != '2'
+	</update>
+
+	<delete id="deleteAppraisalById" parameterType="Long">
+		delete from perf_appraisal where appraisal_id = #{appraisalId} and appraisal_status != '2'
+	</delete>
+
+	<delete id="deleteAppraisalItemByAppraisalId" parameterType="Long">
+		delete from perf_appraisal_item where appraisal_id = #{appraisalId}
+	</delete>
+
+</mapper>
