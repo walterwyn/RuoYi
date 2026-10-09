@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<th:block th:fragment="appraisalCss">
+	<style type="text/css">
+		.perf-summary { margin-bottom: 10px; padding: 0 15px; }
+		.perf-summary .perf-cell { padding: 6px 0; }
+		.perf-summary .perf-label { color: #999; margin-right: 6px; }
+		.perf-score-box { text-align: center; border: 1px solid #e7eaec; border-radius: 4px; padding: 10px 0; }
+		.perf-score-box .perf-score { font-size: 26px; font-weight: 600; color: #1ab394; line-height: 32px; }
+		.perf-score-box .perf-score-label { color: #999; font-size: 12px; }
+		.perf-items td, .perf-items th { vertical-align: middle !important; }
+		.perf-comment { white-space: pre-wrap; word-break: break-all; }
+		.perf-score-input { width: 90px; margin: 0 auto; text-align: center; }
+	</style>
+	</th:block>
+</head>
+<body>
+	<!-- 考核单概要（详细、自评、评分页面共用） -->
+	<div th:fragment="appraisalSummary" class="perf-summary" th:object="${appraisal}">
+	<div class="row">
+		<div class="col-sm-8">
+			<div class="row">
+				<div class="col-sm-6 perf-cell"><span class="perf-label">考核计划：</span><span th:text="*{planName}"></span></div>
+				<div class="col-sm-6 perf-cell"><span class="perf-label">考核周期：</span><span th:text="${@dict.getLabel('perf_cycle_type', appraisal.cycleType)}"></span></div>
+				<div class="col-sm-6 perf-cell"><span class="perf-label">被考核人：</span><span th:text="*{userName} + '（' + *{loginName} + '）'"></span></div>
+				<div class="col-sm-6 perf-cell"><span class="perf-label">所属部门：</span><span th:text="*{deptName}"></span></div>
+				<div class="col-sm-6 perf-cell"><span class="perf-label">评分人：</span><span th:text="*{reviewerName}"></span></div>
+				<div class="col-sm-6 perf-cell"><span class="perf-label">考核状态：</span><span th:text="${@dict.getLabel('perf_appraisal_status', appraisal.appraisalStatus)}"></span></div>
+				<div class="col-sm-6 perf-cell"><span class="perf-label">自评提交：</span><span th:text="*{selfTime != null ? #dates.format(selfTime, 'yyyy-MM-dd HH:mm') : '-'}"></span></div>
+				<div class="col-sm-6 perf-cell"><span class="perf-label">评分时间：</span><span th:text="*{reviewTime != null ? #dates.format(reviewTime, 'yyyy-MM-dd HH:mm') : '-'}"></span></div>
+			</div>
+		</div>
+		<div class="col-sm-4">
+			<div class="row">
+				<div class="col-xs-4">
+					<div class="perf-score-box">
+						<div class="perf-score" th:text="*{finalScore != null ? finalScore : '-'}"></div>
+						<div class="perf-score-label">最终得分</div>
+					</div>
+				</div>
+				<div class="col-xs-4">
+					<div class="perf-score-box">
+						<div class="perf-score" th:text="*{grade != null ? grade : '-'}"></div>
+						<div class="perf-score-label">绩效等级</div>
+					</div>
+				</div>
+				<div class="col-xs-4">
+					<div class="perf-score-box">
+						<div class="perf-score" th:text="*{planRank != null ? planRank : '-'}"></div>
+						<div class="perf-score-label">计划内排名</div>
+					</div>
+				</div>
+			</div>
+			<div class="text-muted" style="margin-top:6px;font-size:12px;" th:text="'最终得分 = 自评 × ' + *{selfWeight} + '% + 上级评分 × ' + (100 - *{selfWeight}) + '%'"></div>
+		</div>
+	</div>
+	</div>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" >
+<head>
+	<th:block th:include="include :: header('修改考核模板')" />
+</head>
+<body class="gray-bg">
+	<div class="main-content">
+		<form id="form-template-edit" class="form-horizontal" th:object="${template}">
+			<input id="templateId" name="templateId" type="hidden" th:field="*{templateId}"/>
+			<h4 class="form-header h4">基本信息</h4>
+			<div class="row">
+				<div class="col-sm-6">
+					<div class="form-group">
+						<label class="col-sm-4 control-label is-required">模板名称：</label>
+						<div class="col-sm-8">
+							<input id="templateName" name="templateName" th:field="*{templateName}" placeholder="请输入模板名称" class="form-control" type="text" maxlength="100" required>
+						</div>
+					</div>
+				</div>
+				<div class="col-sm-6">
+					<div class="form-group">
+						<label class="col-sm-4 control-label">状态：</label>
+						<div class="col-sm-8">
+							<div class="radio-box" th:each="dict : ${@dict.getType('sys_normal_disable')}">
+								<input type="radio" th:id="${dict.dictCode}" name="status" th:value="${dict.dictValue}" th:field="*{status}">
+								<label th:for="${dict.dictCode}" th:text="${dict.dictLabel}"></label>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="row">
+				<div class="col-sm-12">
+					<div class="form-group">
+						<label class="col-xs-2 control-label">备注：</label>
+						<div class="col-xs-10">
+							<textarea name="remark" maxlength="500" class="form-control" rows="3">[[*{remark}]]</textarea>
+						</div>
+					</div>
+				</div>
+			</div>
+		</form>
+		<div th:replace="~{perf/template/itemTable :: itemTableHtml}"></div>
+	</div>
+
+	<div class="row">
+		<div class="col-sm-offset-5 col-sm-10">
+			<button type="button" class="btn btn-sm btn-primary" onclick="submitHandler()"><i class="fa fa-check"></i>保 存</button>&nbsp;
+			<button type="button" class="btn btn-sm btn-danger" onclick="closeItem()"><i class="fa fa-reply-all"></i>关 闭 </button>
+		</div>
+	</div>
+	<th:block th:include="include :: footer" />
+	<script type="text/javascript">
+		var prefix = ctx + "perf/template";
+	</script>
+	<script th:replace="~{perf/template/itemTable :: itemTableJs}"></script>
+	<script th:inline="javascript">
+		$(function() {
+			initItemTable([[${template.items}]]);
+		});
+
+		$("#form-template-edit").validate({
+			onkeyup: false,
+			rules:{
+				templateName:{
+					remote: {
+						url: prefix + "/checkTemplateNameUnique",
+						type: "post",
+						dataType: "json",
+						data: {
+							"templateId": function() {
+								return $("#templateId").val();
+							},
+							"templateName" : function() {
+								return $.common.trim($("#templateName").val());
+							}
+						}
+					}
+				}
+			},
+			messages: {
+				"templateName": {
+					remote: "模板名称已经存在"
+				}
+			},
+			focusCleanup: true
+		});
+
+		function submitHandler() {
+			if ($.validate.form("form-template-edit")) {
+				var data = buildData("form-template-edit");
+				if (data != null) {
+					$.operate.saveTab(prefix + "/edit", data);
+				}
+			}
+		}
+	</script>
+</body>
+</html>

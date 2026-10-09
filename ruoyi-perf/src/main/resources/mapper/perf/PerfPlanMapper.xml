@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.perf.mapper.PerfPlanMapper">
+
+	<resultMap type="PerfPlan" id="PerfPlanResult">
+		<id     property="planId"           column="plan_id"           />
+		<result property="planName"         column="plan_name"         />
+		<result property="cycleType"        column="cycle_type"        />
+		<result property="startDate"        column="start_date"        />
+		<result property="endDate"          column="end_date"          />
+		<result property="templateId"       column="template_id"       />
+		<result property="templateName"     column="template_name"     />
+		<result property="selfWeight"       column="self_weight"       />
+		<result property="planStatus"       column="plan_status"       />
+		<result property="publishTime"      column="publish_time"      />
+		<result property="finishTime"       column="finish_time"       />
+		<result property="totalCount"       column="total_count"       />
+		<result property="finishedCount"    column="finished_count"    />
+		<result property="createBy"         column="create_by"         />
+		<result property="createTime"       column="create_time"       />
+		<result property="updateBy"         column="update_by"         />
+		<result property="updateTime"       column="update_time"       />
+		<result property="remark"           column="remark"            />
+	</resultMap>
+
+	<sql id="selectPlanVo">
+		select p.plan_id, p.plan_name, p.cycle_type, p.start_date, p.end_date, p.template_id, t.template_name, p.self_weight,
+		       p.plan_status, p.publish_time, p.finish_time, p.create_by, p.create_time, p.update_by, p.update_time, p.remark,
+		       (select count(1) from perf_appraisal a where a.plan_id = p.plan_id) as total_count,
+		       (select count(1) from perf_appraisal a where a.plan_id = p.plan_id and a.appraisal_status = '2') as finished_count
+		from perf_plan p
+		left join perf_template t on t.template_id = p.template_id
+	</sql>
+
+	<select id="selectPlanList" parameterType="PerfPlan" resultMap="PerfPlanResult">
+		<include refid="selectPlanVo"/>
+		<where>
+			<if test="planName != null and planName != ''">
+				AND p.plan_name like concat('%', #{planName}, '%')
+			</if>
+			<if test="cycleType != null and cycleType != ''">
+				AND p.cycle_type = #{cycleType}
+			</if>
+			<if test="planStatus != null and planStatus != ''">
+				AND p.plan_status = #{planStatus}
+			</if>
+			<if test="params.beginTime != null and params.beginTime != ''"><!-- 开始时间检索 -->
+				AND date_format(p.start_date,'%Y%m%d') &gt;= date_format(#{params.beginTime},'%Y%m%d')
+			</if>
+			<if test="params.endTime != null and params.endTime != ''"><!-- 结束时间检索 -->
+				AND date_format(p.start_date,'%Y%m%d') &lt;= date_format(#{params.endTime},'%Y%m%d')
+			</if>
+		</where>
+		order by p.plan_id desc
+	</select>
+
+	<select id="selectPlanById" parameterType="Long" resultMap="PerfPlanResult">
+		<include refid="selectPlanVo"/>
+		where p.plan_id = #{planId}
+	</select>
+
+	<select id="checkPlanNameUnique" parameterType="String" resultMap="PerfPlanResult">
+		<include refid="selectPlanVo"/>
+		where p.plan_name = #{planName} limit 1
+	</select>
+
+	<insert id="insertPlan" parameterType="PerfPlan" useGeneratedKeys="true" keyProperty="planId">
+		insert into perf_plan(
+			<if test="planName != null and planName != ''">plan_name,</if>
+			<if test="cycleType != null and cycleType != ''">cycle_type,</if>
+			<if test="startDate != null">start_date,</if>
+			<if test="endDate != null">end_date,</if>
+			<if test="templateId != null">template_id,</if>
+			<if test="selfWeight != null">self_weight,</if>
+			plan_status,
+			<if test="remark != null and remark != ''">remark,</if>
+			<if test="createBy != null and createBy != ''">create_by,</if>
+			create_time
+		)values(
+			<if test="planName != null and planName != ''">#{planName},</if>
+			<if test="cycleType != null and cycleType != ''">#{cycleType},</if>
+			<if test="startDate != null">#{startDate},</if>
+			<if test="endDate != null">#{endDate},</if>
+			<if test="templateId != null">#{templateId},</if>
+			<if test="selfWeight != null">#{selfWeight},</if>
+			'0',
+			<if test="remark != null and remark != ''">#{remark},</if>
+			<if test="createBy != null and createBy != ''">#{createBy},</if>
+			sysdate()
+		)
+	</insert>
+
+	<update id="updatePlan" parameterType="PerfPlan">
+		update perf_plan
+		<set>
+			<if test="planName != null and planName != ''">plan_name = #{planName},</if>
+			<if test="cycleType != null and cycleType != ''">cycle_type = #{cycleType},</if>
+			<if test="startDate != null">start_date = #{startDate},</if>
+			<if test="endDate != null">end_date = #{endDate},</if>
+			<if test="templateId != null">template_id = #{templateId},</if>
+			<if test="selfWeight != null">self_weight = #{selfWeight},</if>
+			<if test="remark != null">remark = #{remark},</if>
+			<if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+			update_time = sysdate()
+		</set>
+		where plan_id = #{planId} and plan_status = '0'
+	</update>
+
+	<update id="updatePlanStatus">
+		update perf_plan
+		set plan_status = #{newStatus},
+		    <if test="newStatus == '1'.toString()">publish_time = sysdate(),</if>
+		    <if test="newStatus == '2'.toString()">finish_time = sysdate(),</if>
+		    update_by = #{updateBy},
+		    update_time = sysdate()
+		where plan_id = #{planId} and plan_status = #{oldStatus}
+	</update>
+
+	<delete id="deletePlanByIds" parameterType="Long">
+		delete from perf_plan where plan_status = '0' and plan_id in
+		<foreach collection="array" item="planId" open="(" separator="," close=")">
+			#{planId}
+		</foreach>
+	</delete>
+
+</mapper>

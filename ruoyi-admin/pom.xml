@@ -47,6 +47,12 @@
             <artifactId>ruoyi-quartz</artifactId>
         </dependency>
 
+        <!-- 员工绩效-->
+        <dependency>
+            <groupId>com.ruoyi</groupId>
+            <artifactId>ruoyi-perf</artifactId>
+        </dependency>
+
         <!-- 代码生成-->
         <dependency>
             <groupId>com.ruoyi</groupId>

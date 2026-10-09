@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" >
+<head>
+	<th:block th:include="include :: header('更换评分人')" />
+	<th:block th:include="include :: select2-css" />
+</head>
+<body class="white-bg">
+	<div class="wrapper wrapper-content animated fadeInRight ibox-content">
+		<form class="form-horizontal m" id="form-reviewer-edit" th:object="${appraisal}">
+			<input id="appraisalId" name="appraisalId" type="hidden" th:field="*{appraisalId}"/>
+			<div class="form-group">
+				<label class="col-sm-3 control-label">被考核人：</label>
+				<div class="col-sm-8">
+					<div class="form-control-static" th:text="*{userName} + ' / ' + *{deptName}"></div>
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="col-sm-3 control-label">当前评分人：</label>
+				<div class="col-sm-8">
+					<div class="form-control-static" th:text="*{reviewerName}"></div>
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="col-sm-3 control-label is-required">新评分人：</label>
+				<div class="col-sm-8">
+					<select id="reviewerId" name="reviewerId" class="form-control" required>
+						<option value="">请选择评分人</option>
+						<option th:each="u : ${users}" th:value="${u.userId}" th:selected="${u.userId == appraisal.reviewerId}"
+							th:text="${u.userName} + '（' + ${u.loginName} + (${u.dept != null and u.dept.deptName != null} ? ' / ' + ${u.dept.deptName} : '') + '）'"></option>
+					</select>
+				</div>
+			</div>
+		</form>
+	</div>
+	<th:block th:include="include :: footer" />
+	<th:block th:include="include :: select2-js" />
+	<script type="text/javascript">
+		var prefix = ctx + "perf/plan";
+
+		function submitHandler() {
+			if ($.validate.form()) {
+				$.operate.save(prefix + "/changeReviewer", $('#form-reviewer-edit').serialize());
+			}
+		}
+	</script>
+</body>
+</html>

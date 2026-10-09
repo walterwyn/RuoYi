@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+<head>
+	<th:block th:include="include :: header('绩效评分')" />
+</head>
+<body class="gray-bg">
+	<div class="container-div">
+		<div class="row">
+			<div class="col-sm-12 search-collapse">
+				<form id="review-form">
+					<div class="select-list">
+						<ul>
+							<li>
+								考核计划：<input type="text" name="planName"/>
+							</li>
+							<li>
+								员工：<input type="text" name="userName" placeholder="姓名或登录账号"/>
+							</li>
+							<li>
+								考核状态：<select name="appraisalStatus" th:with="type=${@dict.getType('perf_appraisal_status')}">
+									<option value="">所有</option>
+									<option th:each="dict : ${type}" th:text="${dict.dictLabel}" th:value="${dict.dictValue}" th:selected="${dict.dictValue == '1'}"></option>
+								</select>
+							</li>
+							<li>
+								<a class="btn btn-primary btn-rounded btn-sm" onclick="$.table.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
+								<a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
+							</li>
+						</ul>
+					</div>
+				</form>
+			</div>
+
+			<div class="col-sm-12 select-table table-striped">
+				<table id="bootstrap-table"></table>
+			</div>
+		</div>
+	</div>
+	<th:block th:include="include :: footer" />
+	<script th:inline="javascript">
+		var scoreFlag = [[${@permission.hasPermi('perf:review:score')}]];
+		var statusDatas = [[${@dict.getType('perf_appraisal_status')}]];
+		var gradeDatas = [[${@dict.getType('perf_grade')}]];
+		var prefix = ctx + "perf/review";
+
+		$(function() {
+			var options = {
+				url: prefix + "/list",
+				detailUrl: prefix + "/detail/{id}",
+				modalName: "考核单",
+				showSearch: false,
+				columns: [
+				{
+					field: 'planName',
+					title: '考核计划'
+				},
+				{
+					field: 'userName',
+					title: '员工姓名'
+				},
+				{
+					field: 'deptName',
+					title: '部门'
+				},
+				{
+					field: 'appraisalStatus',
+					title: '考核状态',
+					align: 'center',
+					formatter: function(value, row, index) {
+						return $.table.selectDictLabel(statusDatas, value);
+					}
+				},
+				{
+					field: 'selfTime',
+					title: '自评提交时间'
+				},
+				{
+					field: 'selfScore',
+					title: '自评得分',
+					align: 'center'
+				},
+				{
+					field: 'leaderScore',
+					title: '上级评分',
+					align: 'center'
+				},
+				{
+					field: 'finalScore',
+					title: '最终得分',
+					align: 'center'
+				},
+				{
+					field: 'grade',
+					title: '等级',
+					align: 'center',
+					formatter: function(value, row, index) {
+						return $.table.selectDictLabel(gradeDatas, value);
+					}
+				},
+				{
+					title: '操作',
+					align: 'center',
+					formatter: function(value, row, index) {
+						var actions = [];
+						if (row.planStatus == '1' && row.appraisalStatus == '1') {
+							actions.push('<a class="btn btn-primary btn-xs ' + scoreFlag + '" href="javascript:void(0)" onclick="score(\'' + row.appraisalId + '\')"><i class="fa fa-check-square-o"></i>评分</a> ');
+						}
+						actions.push('<a class="btn btn-info btn-xs" href="javascript:void(0)" onclick="$.operate.detail(\'' + row.appraisalId + '\', 1000)"><i class="fa fa-search"></i>详细</a>');
+						return actions.join('');
+					}
+				}]
+			};
+			$.table.init(options);
+		});
+
+		/* 上级评分 */
+		function score(appraisalId) {
+			$.modal.openTab("绩效评分", prefix + "/score/" + appraisalId);
+		}
+	</script>
+</body>
+</html>

@@ -164,6 +164,13 @@
                 <version>${ruoyi.version}</version>
             </dependency>
 
+            <!-- 员工绩效-->
+            <dependency>
+                <groupId>com.ruoyi</groupId>
+                <artifactId>ruoyi-perf</artifactId>
+                <version>${ruoyi.version}</version>
+            </dependency>
+
             <!-- 代码生成-->
             <dependency>
                 <groupId>com.ruoyi</groupId>
@@ -200,6 +207,7 @@
         <module>ruoyi-framework</module>
         <module>ruoyi-system</module>
         <module>ruoyi-quartz</module>
+        <module>ruoyi-perf</module>
         <module>ruoyi-generator</module>
         <module>ruoyi-common</module>
     </modules>

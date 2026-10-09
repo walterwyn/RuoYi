@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.perf.mapper.PerfTemplateMapper">
+
+	<resultMap type="PerfTemplate" id="PerfTemplateResult">
+		<id     property="templateId"       column="template_id"       />
+		<result property="templateName"     column="template_name"     />
+		<result property="status"           column="status"            />
+		<result property="itemCount"        column="item_count"        />
+		<result property="createBy"         column="create_by"         />
+		<result property="createTime"       column="create_time"       />
+		<result property="updateBy"         column="update_by"         />
+		<result property="updateTime"       column="update_time"       />
+		<result property="remark"           column="remark"            />
+	</resultMap>
+
+	<resultMap type="PerfTemplateItem" id="PerfTemplateItemResult">
+		<id     property="itemId"           column="item_id"           />
+		<result property="templateId"       column="template_id"       />
+		<result property="indicatorId"      column="indicator_id"      />
+		<result property="weight"           column="weight"            />
+		<result property="orderNum"         column="order_num"         />
+		<result property="indicatorName"    column="indicator_name"    />
+		<result property="indicatorType"    column="indicator_type"    />
+		<result property="scoringStandard"  column="scoring_standard"  />
+	</resultMap>
+
+	<sql id="selectTemplateVo">
+		select t.template_id, t.template_name, t.status, t.create_by, t.create_time, t.update_by, t.update_time, t.remark,
+		       (select count(1) from perf_template_item i where i.template_id = t.template_id) as item_count
+		from perf_template t
+	</sql>
+
+	<select id="selectTemplateList" parameterType="PerfTemplate" resultMap="PerfTemplateResult">
+		<include refid="selectTemplateVo"/>
+		<where>
+			<if test="templateName != null and templateName != ''">
+				AND t.template_name like concat('%', #{templateName}, '%')
+			</if>
+			<if test="status != null and status != ''">
+				AND t.status = #{status}
+			</if>
+		</where>
+		order by t.template_id desc
+	</select>
+
+	<select id="selectTemplateById" parameterType="Long" resultMap="PerfTemplateResult">
+		<include refid="selectTemplateVo"/>
+		where t.template_id = #{templateId}
+	</select>
+
+	<select id="checkTemplateNameUnique" parameterType="String" resultMap="PerfTemplateResult">
+		<include refid="selectTemplateVo"/>
+		where t.template_name = #{templateName} limit 1
+	</select>
+
+	<select id="selectTemplateItems" parameterType="Long" resultMap="PerfTemplateItemResult">
+		select i.item_id, i.template_id, i.indicator_id, i.weight, i.order_num,
+		       d.indicator_name, d.indicator_type, d.scoring_standard
+		from perf_template_item i
+		left join perf_indicator d on d.indicator_id = i.indicator_id
+		where i.template_id = #{templateId}
+		order by i.order_num, i.item_id
+	</select>
+
+	<select id="countPlanByTemplateIds" resultType="int">
+		select count(1) from perf_plan where template_id in
+		<foreach collection="array" item="templateId" open="(" separator="," close=")">
+			#{templateId}
+		</foreach>
+	</select>
+
+	<insert id="insertTemplate" parameterType="PerfTemplate" useGeneratedKeys="true" keyProperty="templateId">
+		insert into perf_template(
+			<if test="templateName != null and templateName != ''">template_name,</if>
+			<if test="status != null and status != ''">status,</if>
+			<if test="remark != null and remark != ''">remark,</if>
+			<if test="createBy != null and createBy != ''">create_by,</if>
+			create_time
+		)values(
+			<if test="templateName != null and templateName != ''">#{templateName},</if>
+			<if test="status != null and status != ''">#{status},</if>
+			<if test="remark != null and remark != ''">#{remark},</if>
+			<if test="createBy != null and createBy != ''">#{createBy},</if>
+			sysdate()
+		)
+	</insert>
+
+	<update id="updateTemplate" parameterType="PerfTemplate">
+		update perf_template
+		<set>
+			<if test="templateName != null and templateName != ''">template_name = #{templateName},</if>
+			<if test="status != null and status != ''">status = #{status},</if>
+			<if test="remark != null">remark = #{remark},</if>
+			<if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+			update_time = sysdate()
+		</set>
+		where template_id = #{templateId}
+	</update>
+
+	<delete id="deleteTemplateByIds" parameterType="Long">
+		delete from perf_template where template_id in
+		<foreach collection="array" item="templateId" open="(" separator="," close=")">
+			#{templateId}
+		</foreach>
+	</delete>
+
+	<delete id="deleteTemplateItemByTemplateIds" parameterType="Long">
+		delete from perf_template_item where template_id in
+		<foreach collection="array" item="templateId" open="(" separator="," close=")">
+			#{templateId}
+		</foreach>
+	</delete>
+
+	<insert id="batchTemplateItem">
+		insert into perf_template_item(template_id, indicator_id, weight, order_num) values
+		<foreach item="item" index="index" collection="list" separator=",">
+			(#{item.templateId}, #{item.indicatorId}, #{item.weight}, #{item.orderNum})
+		</foreach>
+	</insert>
+
+</mapper>

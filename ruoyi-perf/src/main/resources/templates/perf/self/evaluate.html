@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" >
+<head>
+	<th:block th:include="include :: header('员工自评')" />
+	<th:block th:include="perf/appraisal/info :: appraisalCss" />
+</head>
+<body class="gray-bg">
+	<div class="main-content">
+		<form id="form-self-evaluate" class="form-horizontal">
+			<input type="hidden" name="appraisalId" th:value="${appraisal.appraisalId}">
+			<h4 class="form-header h4">考核信息</h4>
+			<div th:replace="~{perf/appraisal/info :: appraisalSummary}"></div>
+			<div class="alert alert-warning" th:if="${appraisal.leaderComment != null and #strings.startsWith(appraisal.leaderComment, '【退回】')}">
+				<i class="fa fa-exclamation-circle"></i> 评分人已退回你的自评，请修改后重新提交：<span th:text="${#strings.substringAfter(appraisal.leaderComment, '【退回】')}"></span>
+			</div>
+
+			<h4 class="form-header h4">指标自评 <small>每项按 0-100 分打分，加权自评得分：<b id="weightedScore">0.00</b></small></h4>
+			<table class="table table-bordered perf-items">
+				<thead>
+					<tr>
+						<th class="text-center" style="width:50px;">序号</th>
+						<th style="width:140px;">指标名称</th>
+						<th class="text-center" style="width:90px;">指标类型</th>
+						<th>评分标准</th>
+						<th class="text-center" style="width:70px;">权重</th>
+						<th class="text-center" style="width:130px;">自评分</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr th:each="item, stat : ${appraisal.items}">
+						<td class="text-center" th:text="${stat.count}"></td>
+						<td th:text="${item.indicatorName}"></td>
+						<td class="text-center" th:text="${@dict.getLabel('perf_indicator_type', item.indicatorType)}"></td>
+						<td class="text-muted" th:text="${item.scoringStandard}"></td>
+						<td class="text-center" th:text="${item.weight} + '%'"></td>
+						<td class="text-center">
+							<input type="hidden" th:name="'items[' + ${stat.index} + '].itemId'" th:value="${item.itemId}">
+							<input class="form-control input-sm perf-score-input item-score" type="number" min="0" max="100" step="0.5"
+								th:name="'items[' + ${stat.index} + '].selfScore'" th:value="${item.selfScore}" th:attr="data-weight=${item.weight},data-name=${item.indicatorName}">
+						</td>
+					</tr>
+				</tbody>
+			</table>
+
+			<h4 class="form-header h4">自评总结</h4>
+			<div class="row">
+				<div class="col-sm-12">
+					<textarea name="selfComment" id="selfComment" class="form-control" rows="5" maxlength="1000" placeholder="总结本考核期的主要工作成果、不足与改进计划（提交时必填）" th:text="${appraisal.selfComment}"></textarea>
+				</div>
+			</div>
+		</form>
+	</div>
+
+	<div class="row">
+		<div class="col-sm-offset-5 col-sm-10">
+			<button type="button" class="btn btn-sm btn-primary" onclick="submitHandler()"><i class="fa fa-check"></i>提交自评</button>&nbsp;
+			<button type="button" class="btn btn-sm btn-success" onclick="saveDraft()"><i class="fa fa-save"></i>暂 存</button>&nbsp;
+			<button type="button" class="btn btn-sm btn-danger" onclick="closeItem()"><i class="fa fa-reply-all"></i>关 闭 </button>
+		</div>
+	</div>
+	<th:block th:include="include :: footer" />
+	<script type="text/javascript">
+		var prefix = ctx + "perf/self";
+
+		$(function() {
+			refreshScore();
+			$(".item-score").on("input change", refreshScore);
+		});
+
+		/* 实时计算加权得分 */
+		function refreshScore() {
+			var total = 0;
+			$(".item-score").each(function() {
+				var score = parseFloat($(this).val());
+				if (!isNaN(score)) {
+					total += score * $(this).data("weight") / 100;
+				}
+			});
+			$("#weightedScore").text(total.toFixed(2));
+		}
+
+		/* 校验分数，required为true时要求全部填写 */
+		function checkScores(required) {
+			var valid = true;
+			$(".item-score").each(function() {
+				var value = $.common.trim($(this).val());
+				var name = $(this).data("name");
+				if (value == "") {
+					if (required) {
+						$.modal.alertWarning("请填写指标「" + name + "」的分数");
+						$(this).focus();
+						valid = false;
+						return false;
+					}
+					return true;
+				}
+				var score = Number(value);
+				if (isNaN(score) || score < 0 || score > 100 || !/^\d+(\.\d{1,2})?$/.test(value)) {
+					$.modal.alertWarning("指标「" + name + "」的分数必须是0到100之间的数字，最多两位小数");
+					$(this).focus();
+					valid = false;
+					return false;
+				}
+			});
+			return valid;
+		}
+
+		function saveDraft() {
+			if (checkScores(false)) {
+				$.operate.saveModal(prefix + "/save", $("#form-self-evaluate").serialize());
+			}
+		}
+
+		function submitHandler() {
+			if (!checkScores(true)) {
+				return;
+			}
+			if ($.common.isEmpty($.common.trim($("#selfComment").val()))) {
+				$.modal.alertWarning("请填写自评总结");
+				$("#selfComment").focus();
+				return;
+			}
+			$.modal.confirm("提交后将无法修改，确认提交自评吗？", function() {
+				$.operate.saveTab(prefix + "/submit", $("#form-self-evaluate").serialize());
+			});
+		}
+	</script>
+</body>
+</html>

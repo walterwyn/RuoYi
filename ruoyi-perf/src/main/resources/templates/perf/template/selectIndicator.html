@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" >
+<head>
+	<th:block th:include="include :: header('选择考核指标')" />
+</head>
+<body class="gray-bg">
+	<div class="container-div">
+		<div class="row">
+			<div class="col-sm-12 search-collapse">
+				<form id="indicator-form">
+					<div class="select-list">
+						<ul>
+							<li>
+								指标名称：<input type="text" name="indicatorName"/>
+							</li>
+							<li>
+								指标类型：<select name="indicatorType" th:with="type=${@dict.getType('perf_indicator_type')}">
+									<option value="">所有</option>
+									<option th:each="dict : ${type}" th:text="${dict.dictLabel}" th:value="${dict.dictValue}"></option>
+								</select>
+							</li>
+							<li>
+								<a class="btn btn-primary btn-rounded btn-sm" onclick="$.table.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
+								<a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
+							</li>
+						</ul>
+					</div>
+				</form>
+			</div>
+
+			<div class="col-sm-12 select-table table-striped">
+				<table id="bootstrap-table"></table>
+			</div>
+		</div>
+	</div>
+	<th:block th:include="include :: footer" />
+	<script th:inline="javascript">
+		var typeDatas = [[${@dict.getType('perf_indicator_type')}]];
+		var prefix = ctx + "perf/template";
+
+		$(function() {
+			var options = {
+				url: prefix + "/indicatorList",
+				showSearch: false,
+				showRefresh: false,
+				showToggle: false,
+				showColumns: false,
+				clickToSelect: true,
+				rememberSelected: true,
+				uniqueId: "indicatorId",
+				columns: [{
+					field: 'state',
+					checkbox: true
+				},
+				{
+					field: 'indicatorName',
+					title: '指标名称'
+				},
+				{
+					field: 'indicatorType',
+					title: '指标类型',
+					align: 'center',
+					formatter: function(value, row, index) {
+						return $.table.selectDictLabel(typeDatas, value);
+					}
+				},
+				{
+					field: 'scoringStandard',
+					title: '评分标准',
+					formatter: function(value, row, index) {
+						return $.table.tooltip(value, 40);
+					}
+				}]
+			};
+			$.table.init(options);
+		});
+
+		/* 返回选中的指标（支持翻页记忆） */
+		function getSelections() {
+			var rows = table.rememberSelecteds[table.options.id];
+			if ($.common.isEmpty(rows)) {
+				rows = $("#" + table.options.id).bootstrapTable('getSelections');
+			}
+			return rows || [];
+		}
+	</script>
+</body>
+</html>
