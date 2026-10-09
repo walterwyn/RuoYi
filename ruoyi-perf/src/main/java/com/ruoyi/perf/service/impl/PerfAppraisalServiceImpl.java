@@ -268,6 +268,10 @@ public class PerfAppraisalServiceImpl implements IPerfAppraisalService
         {
             throw new ServiceException("请选择有效的评分人");
         }
+        if (reviewerId.equals(appraisal.getUserId()))
+        {
+            throw new ServiceException("评分人不能是被考核员工本人");
+        }
         PerfAppraisal update = new PerfAppraisal();
         update.setAppraisalId(appraisalId);
         update.setReviewerId(reviewerId);

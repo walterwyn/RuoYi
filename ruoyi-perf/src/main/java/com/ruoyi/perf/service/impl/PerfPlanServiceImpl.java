@@ -195,6 +195,10 @@ public class PerfPlanServiceImpl implements IPerfPlanService
             appraisal.setDeptId(candidate.getDeptId());
             Long leaderId = candidate.getReviewerId();
             boolean leaderValid = useDeptLeader && leaderId != null && !leaderId.equals(candidate.getUserId());
+            if (!leaderValid && reviewerId.equals(candidate.getUserId()))
+            {
+                throw new ServiceException("默认评分人「" + reviewer.getUserName() + "」也在参与考核的员工中，不能给自己评分，请选择其他默认评分人");
+            }
             appraisal.setReviewerId(leaderValid ? leaderId : reviewerId);
             appraisal.setCreateBy(operName);
             appraisalMapper.insertAppraisal(appraisal);
